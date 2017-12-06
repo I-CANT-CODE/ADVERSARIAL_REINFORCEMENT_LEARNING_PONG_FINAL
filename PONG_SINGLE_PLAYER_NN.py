@@ -7,11 +7,12 @@ import random
 import tensorflow as tf
 def NN(x, reuse = False):
     #,
-    x = tf.layers.dense(x,units = 1024,activation = tf.nn.relu,  name = 'FC1', reuse = reuse)
-    x = tf.layers.dense(x,units = 1024, name = 'FC2', reuse = reuse)
-    x = tf.layers.dense(x,units = 1024,  name = 'FC3', reuse = reuse)
-    x = tf.layers.dense(x,units = 1024, name = 'FC4', reuse = reuse)
-    Action_Vals = tf.layers.dense(x,units = 3, name = 'FC5', reuse = reuse)
+    x = tf.layers.dense(x,units = 512,activation = tf.nn.relu,  name = 'FC1', reuse = reuse)
+    x = tf.layers.dense(x,units = 1024,activation = tf.nn.relu, name = 'FC2', reuse = reuse)
+    x = tf.layers.dense(x,units = 2048,activation = tf.nn.relu,  name = 'FC3', reuse = reuse)
+    x = tf.layers.dense(x,units = 1024,activation = tf.nn.relu, name = 'FC4', reuse = reuse)
+    x = tf.layers.dense(x,units = 512,activation = tf.nn.relu, name = 'FC5', reuse = reuse)
+    Action_Vals = tf.layers.dense(x,units = 3, name = 'FC6', reuse = reuse)
     return Action_Vals
 
 State_In = tf.placeholder(tf.float32, shape = [None, 6])
@@ -20,10 +21,10 @@ with tf.variable_scope("paddle"):
 
 
 #loss function stuff----------------------------------------
-GT = tf.placeholder(tf.float32, shape = [32])
+GT = tf.placeholder(tf.float32, shape = [64])
 #GT = max(Q(S_1))*GAMMA+REW
 #this is the target value of Q(S_0,a) where a is hwatever action was taken
-Action_Placeholder = tf.placeholder(tf.float32, shape = [32, 3])
+Action_Placeholder = tf.placeholder(tf.float32, shape = [64, 3])
 #holds the action that was taken at state S_0
 approximation = tf.reduce_sum(tf.multiply(Action_Placeholder,Q), 1)
 #approximation = Q(s,a) = [Q(s,a0),Q(s,a1),Q(s,a2)] * PADDLE_ACTION_TAKEN
@@ -36,7 +37,7 @@ session = tf.Session()
 session.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver(keep_checkpoint_every_n_hours = 1)
-
+#saver.restore(session, './most_recent_model.ckpt')
 GAMMA = .9
 EPSILON = .0
 training_data = []
@@ -100,7 +101,7 @@ while not gameExit:
     clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            saver.save(session, './most_recent_model')
+            saver.save(session, './most_recent_model.ckpt')
             gameExit = True
 
         if event.type == pygame.KEYDOWN:
@@ -240,12 +241,15 @@ while not gameExit:
     if PADDLE_LEFT_Y <= -.5*PADDLE_H:
         PADDLE_LEFT_Y = -.5*PADDLE_H
     S_1 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
-    training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1])
     
+    training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1])
+    if len(training_data)>100000:
+        training_data.pop(0)
+        
     #print('here5?')
     reward_sum = reward_sum + REW
     
-    if time_step%2000==0:
+    if time_step%20000==0:
         print(reward_sum, EPSILON)
         reward_sum = 0
     
@@ -254,20 +258,19 @@ while not gameExit:
     pygame.draw.rect(gameDisplay, white, [PADDLE_LEFT_X,PADDLE_LEFT_Y,PADDLE_W,PADDLE_H])#draw first paddle
     pygame.draw.rect(gameDisplay, white, [BALL_X,BALL_Y,BALL_DIM,BALL_DIM])#draw ball
     pygame.display.update()
-    if len(training_data)>50000:
-        training_data.pop(0)
+    
     #print(training_data[-1])
     if time_step == 1000:
         print('training time')
     if time_step>=1000:
         if EPSILON <.85:
-            EPSILON = EPSILON +.000001
+            EPSILON = EPSILON +.00001
         elif (EPSILON >=.85)&(EPSILON<.90):
-            EPSILON = EPSILON +.0000005
+            EPSILON = EPSILON +.000005
         elif (EPSILON >=.90)&(EPSILON<.97):
-            EPSILON = EPSILON + .0000001
+            EPSILON = EPSILON + .000001
             
-        batch = random.sample(training_data, 32)
+        batch = random.sample(training_data, 64)
         so_ = [item[0] for item in batch]
         actions_ = [item[1] for item in batch]
         rewards_ = [item[2] for item in batch]

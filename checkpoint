@@ -1,2 +1,2 @@
-model_checkpoint_path: "most_recent_model"
-all_model_checkpoint_paths: "most_recent_model"
+model_checkpoint_path: "most_recent_model.ckpt"
+all_model_checkpoint_paths: "most_recent_model.ckpt"
