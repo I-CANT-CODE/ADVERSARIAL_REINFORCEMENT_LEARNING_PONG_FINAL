@@ -70,8 +70,8 @@ BALL_V_X = 2
 BALL_V_Y = 2
 
 #SPEEDS
-PADDLE_SPEED = 5
-INIT_BALL_SPEED = 4
+PADDLE_SPEED = 4
+INIT_BALL_SPEED = 5.50
 BALL_SPEED = INIT_BALL_SPEED
 COLLISION_MARGIN = 10
 
@@ -98,7 +98,7 @@ while not gameExit:
     time_step = time_step + 1
     REW = 0
     S_0 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
-    clock.tick(60)
+    #clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             saver.save(session, './most_recent_model.ckpt')
@@ -146,9 +146,9 @@ while not gameExit:
     #print('here 1?')
     #ACTION CHECK
     if np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(UP):
-        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y-PADDLE_SPEED
+        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y-PADDLE_SPEED-2
     elif np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(DOWN):
-        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y+PADDLE_SPEED
+        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y+PADDLE_SPEED+2
     elif np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(DONT_MOVE):
         PADDLE_RIGHT_Y = PADDLE_RIGHT_Y
     if np.argmax(PADDLE_LEFT_ACTION)==np.argmax(UP):
@@ -268,7 +268,7 @@ while not gameExit:
         elif (EPSILON >=.85)&(EPSILON<.90):
             EPSILON = EPSILON +.000005
         elif (EPSILON >=.90)&(EPSILON<.97):
-            EPSILON = EPSILON + .000001
+            EPSILON = EPSILON + .0000001
             
         batch = random.sample(training_data, 64)
         so_ = [item[0] for item in batch]
