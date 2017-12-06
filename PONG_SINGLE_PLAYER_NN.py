@@ -243,7 +243,7 @@ while not gameExit:
     S_1 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
     
     training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1])
-    if len(training_data)>100000:
+    if len(training_data)>200000:
         training_data.pop(0)
         
     #print('here5?')
