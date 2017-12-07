@@ -37,9 +37,9 @@ session = tf.Session()
 session.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver(keep_checkpoint_every_n_hours = 1)
-#saver.restore(session, './most_recent_model.ckpt')
+#saver.restore(session, '')
 GAMMA = .9
-EPSILON = .0
+EPSILON = .97
 training_data = []
 #-------------------------------------------------------------------------------
 
@@ -101,7 +101,7 @@ while not gameExit:
     #clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            saver.save(session, './most_recent_model.ckpt')
+            saver.save(session, './most_recent_model')
             gameExit = True
 
         if event.type == pygame.KEYDOWN:
@@ -249,8 +249,9 @@ while not gameExit:
     #print('here5?')
     reward_sum = reward_sum + REW
     
-    if time_step%20000==0:
-        print(reward_sum, EPSILON)
+    if time_step%5000==0:
+        print(time_step, ',', reward_sum, ',', EPSILON, ';')
+        saver.save(session, './E_GREEDY_Model_Time_Step', global_step = time_step)
         reward_sum = 0
     
     gameDisplay.fill(black)#fill black background
@@ -263,12 +264,10 @@ while not gameExit:
     if time_step == 1000:
         print('training time')
     if time_step>=1000:
-        if EPSILON <.85:
-            EPSILON = EPSILON +.00001
-        elif (EPSILON >=.85)&(EPSILON<.90):
-            EPSILON = EPSILON +.000005
-        elif (EPSILON >=.90)&(EPSILON<.97):
-            EPSILON = EPSILON + .0000001
+        #if EPSILON <.95:
+         #   EPSILON = EPSILON +.00001
+        #elif (EPSILON >=.95)&(EPSILON<.97):
+         #   EPSILON = EPSILON + .000005
             
         batch = random.sample(training_data, 64)
         so_ = [item[0] for item in batch]
