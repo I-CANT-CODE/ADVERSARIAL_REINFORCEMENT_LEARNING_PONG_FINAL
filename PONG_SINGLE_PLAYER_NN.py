@@ -3,6 +3,8 @@ import numpy as np
 import math
 import random
 
+RESULTS_FILE = open('PONG_SINGLE_PLAYER_NN_REWARD_RESULTS.txt','a')
+
 #MACHINE LEARNING STUFF---------------------------------------------------------
 import tensorflow as tf
 def NN(x, reuse = False):
@@ -38,7 +40,7 @@ session.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver(keep_checkpoint_every_n_hours = 1)
 #saver.restore(session, '')
-GAMMA = .9
+GAMMA = .99
 EPSILON = .97
 training_data = []
 #-------------------------------------------------------------------------------
@@ -103,6 +105,7 @@ while not gameExit:
         if event.type == pygame.QUIT:
             saver.save(session, './most_recent_model')
             gameExit = True
+            RESULTS_FILE.close()
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_DOWN:
@@ -250,7 +253,10 @@ while not gameExit:
     reward_sum = reward_sum + REW
     
     if time_step%5000==0:
-        print(time_step, ',', reward_sum, ';')
+        
+        This_Result_Str = str(time_step)+' , '+str(reward_sum)+' ; \n'
+        RESULTS_FILE.write(This_Result_Str)
+        print(This_Result_Str)
         saver.save(session, './E_GREEDY_Model_Time_Step', global_step = time_step)
         reward_sum = 0
     
@@ -283,5 +289,6 @@ while not gameExit:
         target_ = [j+i for i,j in zip(rewards_,target_)]
         session.run(train_step, feed_dict = {GT: target_ ,Action_Placeholder: actions_ ,State_In: so_})
 
-pygame.quit()      
+pygame.quit()
+
 quit()
