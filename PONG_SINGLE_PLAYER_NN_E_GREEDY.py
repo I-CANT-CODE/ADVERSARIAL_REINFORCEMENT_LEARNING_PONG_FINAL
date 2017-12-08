@@ -202,7 +202,7 @@ while not gameExit:
         
         BALL_V_X = BALL_SPEED*-math.cos(BALL_PADDLE_RIGHT_COORDINATE)
         BALL_V_Y = BALL_SPEED*-math.sin(BALL_PADDLE_RIGHT_COORDINATE)
-        REW = .1
+        #REW = .1
     if CEILING_COLLISION:
         BALL_Y = 0
         BALL_V_Y = BALL_V_Y * -1
