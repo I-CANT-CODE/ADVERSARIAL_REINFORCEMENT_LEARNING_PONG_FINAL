@@ -2,9 +2,7 @@ import pygame
 import numpy as np
 import math
 import random
-
-RESULTS_FILE = open('PONG_SINGLE_PLAYER_NN_REWARD_RESULTS.txt','a')
-
+results_file = open('single_player_results','a')
 #MACHINE LEARNING STUFF---------------------------------------------------------
 import tensorflow as tf
 def NN(x, reuse = False):
@@ -38,9 +36,9 @@ train_step = tf.train.AdamOptimizer(1e-4).minimize(Loss)
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
-saver = tf.train.Saver(keep_checkpoint_every_n_hours = 1)
+saver = tf.train.Saver()
 #saver.restore(session, '')
-GAMMA = .99
+GAMMA = .9
 EPSILON = .97
 training_data = []
 #-------------------------------------------------------------------------------
@@ -72,7 +70,8 @@ BALL_V_X = 2
 BALL_V_Y = 2
 
 #SPEEDS
-PADDLE_SPEED = 4
+PADDLE_SPEED = 6
+PADDLE_SPEED_CPU = 4
 INIT_BALL_SPEED = 5.50
 BALL_SPEED = INIT_BALL_SPEED
 COLLISION_MARGIN = 10
@@ -103,9 +102,9 @@ while not gameExit:
     #clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            saver.save(session, './most_recent_model')
+            results_file.close()
+            
             gameExit = True
-            RESULTS_FILE.close()
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_DOWN:
@@ -149,15 +148,15 @@ while not gameExit:
     #print('here 1?')
     #ACTION CHECK
     if np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(UP):
-        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y-PADDLE_SPEED-2
+        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y-PADDLE_SPEED
     elif np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(DOWN):
-        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y+PADDLE_SPEED+2
+        PADDLE_RIGHT_Y = PADDLE_RIGHT_Y+PADDLE_SPEED
     elif np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(DONT_MOVE):
         PADDLE_RIGHT_Y = PADDLE_RIGHT_Y
     if np.argmax(PADDLE_LEFT_ACTION)==np.argmax(UP):
-        PADDLE_LEFT_Y = PADDLE_LEFT_Y-PADDLE_SPEED
+        PADDLE_LEFT_Y = PADDLE_LEFT_Y-PADDLE_SPEED_CPU
     elif np.argmax(PADDLE_LEFT_ACTION)==np.argmax(DOWN):
-        PADDLE_LEFT_Y = PADDLE_LEFT_Y+PADDLE_SPEED
+        PADDLE_LEFT_Y = PADDLE_LEFT_Y+PADDLE_SPEED_CPU
     elif np.argmax(PADDLE_LEFT_ACTION)==np.argmax(DONT_MOVE):
         PADDLE_LEFT_Y = PADDLE_LEFT_Y
     BALL_X = BALL_X + BALL_V_X
@@ -205,7 +204,7 @@ while not gameExit:
         
         BALL_V_X = BALL_SPEED*-math.cos(BALL_PADDLE_RIGHT_COORDINATE)
         BALL_V_Y = BALL_SPEED*-math.sin(BALL_PADDLE_RIGHT_COORDINATE)
-        #REW = .1
+        REW = .1
     if CEILING_COLLISION:
         BALL_Y = 0
         BALL_V_Y = BALL_V_Y * -1
@@ -246,19 +245,20 @@ while not gameExit:
     S_1 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
     
     training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1])
-    if len(training_data)>200000:
+    if len(training_data)>50000:
         training_data.pop(0)
         
     #print('here5?')
     reward_sum = reward_sum + REW
     
     if time_step%5000==0:
-        
-        This_Result_Str = str(time_step)+' , '+str(reward_sum)+' ; \n'
-        RESULTS_FILE.write(This_Result_Str)
-        print(This_Result_Str)
-        saver.save(session, './E_GREEDY_Model_Time_Step', global_step = time_step)
+        result_str = str(time_step) + ',' + str(reward_sum) + ',' + str(EPSILON)+ ';' + '\n'
+        print(result_str)
+        results_file.write(result_str)
         reward_sum = 0
+    if time_step%10000 == 0:
+        saver.save(session, './SINGLE_AGENT_MODEL', global_step = time_step)
+        
     
     gameDisplay.fill(black)#fill black background
     pygame.draw.rect(gameDisplay, white, [PADDLE_RIGHT_X,PADDLE_RIGHT_Y,PADDLE_W,PADDLE_H])#draw first paddle
@@ -289,6 +289,5 @@ while not gameExit:
         target_ = [j+i for i,j in zip(rewards_,target_)]
         session.run(train_step, feed_dict = {GT: target_ ,Action_Placeholder: actions_ ,State_In: so_})
 
-pygame.quit()
-
+pygame.quit()      
 quit()
