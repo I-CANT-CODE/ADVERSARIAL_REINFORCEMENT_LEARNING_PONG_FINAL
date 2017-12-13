@@ -1,14 +1,18 @@
 '''
-THIS IS THE SINGLE AGENT CODE. THIS WILL BE TRAINED FOR 500,000 TIME STEPS.
-THE MODEL MADE FROM THIS CODE WILL THEN BE PLAYED AGAINST THE MULTI AGENT CODE'S
-MODEL IN ORDER TO TEST THE EFFECTS OF TRAINING IN AN ADVERSARIAL VS NON ADVERSARIAL
-SETTING.
+THIS IS THE MULTI AGENT CODE
+WHAT THIS CODE DOES IS CREATE A MODEL FOR TWO LEARNING AGENTS
+WHO LEARN THEIR POLICY FUNCTIONS OVER TIME. THIS WAS TRAINED
+FOR 500,000 TIMESTEPS. THIS WILL SAVE A MULTI AGENT MODEL FILE.
+ONCE THIS HAS COMPLETED 500,000 TIME STEPS, THE NEXT PROGRAM TO CALL
+IS THE MULTI AGENT EVALUATOR CODE, WHICH WILL TAKE THE MODELS FROM THIS
+AND THE SINGLE AGENT RL CODE AND WILL HAVE THEM PLAY EACHOTHER IN A
+GAME OF PONG.
 '''
 import pygame
 import numpy as np
 import math
 import random
-results_file = open('single_player_results','a')
+results_file = open('multi_agent_results_file','a')
 #MACHINE LEARNING STUFF---------------------------------------------------------
 import tensorflow as tf
 def NN(x, reuse = False):
@@ -24,6 +28,9 @@ def NN(x, reuse = False):
 State_In = tf.placeholder(tf.float32, shape = [None, 6])
 with tf.variable_scope("paddle"):
     Q = NN(State_In, reuse = False)
+State_In2 = tf.placeholder(tf.float32, shape = [None, 6])
+with tf.variable_scope("paddle2"):
+    Q2 = NN(State_In2, reuse = False)
 
 
 #loss function stuff----------------------------------------
@@ -39,14 +46,33 @@ Loss = tf.reduce_mean(tf.square(GT-approximation))
 #loss function is difference between current apprximation and target
 train_step = tf.train.AdamOptimizer(1e-4).minimize(Loss)
 #train with adam optimaizer to reduce magnitude of loss function
+
+
+
+GT2 = tf.placeholder(tf.float32, shape = [64])
+#GT = max(Q(S_1))*GAMMA+REW
+#this is the target value of Q(S_0,a) where a is hwatever action was taken
+Action_Placeholder2 = tf.placeholder(tf.float32, shape = [64, 3])
+#holds the action that was taken at state S_0
+approximation2 = tf.reduce_sum(tf.multiply(Action_Placeholder2,Q2), 1)
+#approximation = Q(s,a) = [Q(s,a0),Q(s,a1),Q(s,a2)] * PADDLE_ACTION_TAKEN
+#the value of the action taken in state s_0
+Loss2 = tf.reduce_mean(tf.square(GT2-approximation2))
+#loss function is difference between current apprximation and target
+train_step2 = tf.train.AdamOptimizer(1e-4).minimize(Loss2)
+#train with adam optimaizer to reduce magnitude of loss function
+
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver()
-#saver.restore(session, '')
+#paddle 2-
+#saver.restore(session, 'E_GREEDY_Model_MULTIAGENT_Time_Step-800000')
+#saver.restore(session, 'E_GREEDY_Model_Time_Step-800000')
 GAMMA = .9
 EPSILON = .97
 training_data = []
+
 #-------------------------------------------------------------------------------
 
 
@@ -77,7 +103,6 @@ BALL_V_Y = 2
 
 #SPEEDS
 PADDLE_SPEED = 6
-PADDLE_SPEED_CPU = 4
 INIT_BALL_SPEED = 5.50
 BALL_SPEED = INIT_BALL_SPEED
 COLLISION_MARGIN = 10
@@ -100,16 +125,19 @@ L_POINTS = 0
 R_POINTS = 0
 time_step = -1
 reward_sum = 0
+reward_sum2 = 0
 margin = 0
+Num_Episodes = 0
 while not gameExit:
     time_step = time_step + 1
     REW = 0
+    REW2 = 0
+    
     S_0 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
     #clock.tick(60)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             results_file.close()
-            
             gameExit = True
 
         if event.type == pygame.KEYDOWN:
@@ -140,15 +168,16 @@ while not gameExit:
     else:
         PADDLE_RIGHT_ACTION[random.randint(0,2)]=1
 
-    if (BALL_V_X<0)&(BALL_X<WIN_DIM*.50):
-        if (PADDLE_LEFT_Y+PADDLE_H/2)>BALL_Y+.5*BALL_DIM+margin:
-            PADDLE_LEFT_ACTION = UP
-        elif (PADDLE_LEFT_Y+PADDLE_H/2)<BALL_Y+.5*BALL_DIM-margin:
-            PADDLE_LEFT_ACTION = DOWN
-        else:
-            PADDLE_LEFT_ACTION = DONT_MOVE
+    PADDLE_LEFT_ACTION = [0,0,0]
+    if np.random.binomial(1,EPSILON):
+        #print('yolo')
+        action_values = session.run(Q2,feed_dict = {State_In2:[S_0]})
+        PADDLE_LEFT_ACTION[np.argmax(action_values)]=1
+        #print(action_values)
+        #print(PADDLE_RIGHT_ACTION)
+        #input()
     else:
-        PADDLE_LEFT_ACTION = DONT_MOVE
+        PADDLE_LEFT_ACTION[random.randint(0,2)]=1
                 
     
     #print('here 1?')
@@ -160,9 +189,9 @@ while not gameExit:
     elif np.argmax(PADDLE_RIGHT_ACTION)==np.argmax(DONT_MOVE):
         PADDLE_RIGHT_Y = PADDLE_RIGHT_Y
     if np.argmax(PADDLE_LEFT_ACTION)==np.argmax(UP):
-        PADDLE_LEFT_Y = PADDLE_LEFT_Y-PADDLE_SPEED_CPU
+        PADDLE_LEFT_Y = PADDLE_LEFT_Y-PADDLE_SPEED
     elif np.argmax(PADDLE_LEFT_ACTION)==np.argmax(DOWN):
-        PADDLE_LEFT_Y = PADDLE_LEFT_Y+PADDLE_SPEED_CPU
+        PADDLE_LEFT_Y = PADDLE_LEFT_Y+PADDLE_SPEED
     elif np.argmax(PADDLE_LEFT_ACTION)==np.argmax(DONT_MOVE):
         PADDLE_LEFT_Y = PADDLE_LEFT_Y
     BALL_X = BALL_X + BALL_V_X
@@ -177,6 +206,7 @@ while not gameExit:
 
     #print('here 2?')
     if LEFT_COLLISION:
+        REW2 = .1
         margin = random.randint(0,35)
         BALL_SPEED = BALL_SPEED + .1
         BALL_X = PADDLE_LEFT_X+PADDLE_W
@@ -218,6 +248,7 @@ while not gameExit:
         BALL_Y = WIN_DIM-BALL_DIM
         BALL_V_Y = BALL_V_Y * -1
     if LEFT_PADDLE_FAIL:
+        Num_Episodes = Num_Episodes +1
         BALL_SPEED = INIT_BALL_SPEED
         PADDLE_LEFT_Y = PADDLE_RIGHT_Y = WIN_DIM/2-PADDLE_H/2
         BALL_X = WIN_DIM/5
@@ -227,8 +258,10 @@ while not gameExit:
         BALL_V_Y = BALL_SPEED*-math.sin(rand_theta)
         R_POINTS = R_POINTS + 1
         REW = 1
+        REW2 = -1
         #print('score - RIGHT = ', R_POINTS, 'LEFT = ',L_POINTS)
     if RIGHT_PADDLE_FAIL:
+        Num_Episodes = Num_Episodes + 1
         BALL_SPEED = INIT_BALL_SPEED
         PADDLE_LEFT_Y = PADDLE_RIGHT_Y = WIN_DIM/2-PADDLE_H/2
         BALL_X = WIN_DIM*4/5
@@ -238,6 +271,7 @@ while not gameExit:
         BALL_Y = WIN_DIM/2
         L_POINTS = L_POINTS + 1
         REW = -1
+        REW2 = 1
         #print('score - RIGHT = ', R_POINTS, 'LEFT = ',L_POINTS)
     #bound the paddles' movement
     if PADDLE_RIGHT_Y >= WIN_DIM-PADDLE_H+.5*PADDLE_H:
@@ -250,21 +284,23 @@ while not gameExit:
         PADDLE_LEFT_Y = -.5*PADDLE_H
     S_1 = [BALL_X, BALL_Y, BALL_V_X, BALL_V_Y, PADDLE_LEFT_Y, PADDLE_RIGHT_Y]
     
-    training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1])
-    if len(training_data)>75000:
+    training_data.append([S_0, PADDLE_RIGHT_ACTION[:], REW, S_1, REW2, PADDLE_LEFT_ACTION[:]])
+    if len(training_data)>50000:
         training_data.pop(0)
         
     #print('here5?')
     reward_sum = reward_sum + REW
+    reward_sum2 = reward_sum2 + REW2
     
     if time_step%5000==0:
-        result_str = str(time_step) + ',' + str(reward_sum) + ',' + str(EPSILON)+ ';' + '\n'
+        result_str = str(time_step)+','+str(reward_sum)+','+str(reward_sum2)+','+str(Num_Episodes)+';'+'\n'
         print(result_str)
         results_file.write(result_str)
         reward_sum = 0
-    if time_step%10000 == 0:
-        saver.save(session, './SINGLE_AGENT_MODEL', global_step = time_step)
-        
+        reward_sum2 = 0
+        Num_Episodes = 0
+    if time_step%10000==0:
+        saver.save(session, './MULTIAGENT_MODEL', global_step = time_step)
     
     gameDisplay.fill(black)#fill black background
     pygame.draw.rect(gameDisplay, white, [PADDLE_RIGHT_X,PADDLE_RIGHT_Y,PADDLE_W,PADDLE_H])#draw first paddle
@@ -294,6 +330,19 @@ while not gameExit:
 
         target_ = [j+i for i,j in zip(rewards_,target_)]
         session.run(train_step, feed_dict = {GT: target_ ,Action_Placeholder: actions_ ,State_In: so_})
+
+        so_ = [item[0] for item in batch]
+        actions_ = [item[5] for item in batch]
+        rewards_ = [item[4] for item in batch]
+        s1_ = [item[3] for item in batch]
+        target = session.run(Q2,feed_dict = {State_In2 : s1_})
+        target_ = [None]*len(batch)
+        for i in range(len(batch)):
+            target_[i] = max(target[i])
+        target_ = [i*GAMMA for i in target_]
+
+        target_ = [j+i for i,j in zip(rewards_,target_)]
+        session.run(train_step2, feed_dict = {GT2: target_ ,Action_Placeholder2: actions_ ,State_In2: so_})
 
 pygame.quit()      
 quit()
